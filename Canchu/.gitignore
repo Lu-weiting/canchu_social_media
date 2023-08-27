@@ -1,0 +1,3 @@
+.env
+my-docker-app/private.key
+my-docker-app/merged.crt

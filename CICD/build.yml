@@ -1,0 +1,67 @@
+name: Canchu
+
+on:
+  push:
+    branches:
+      - develop
+  # workflow_dispatch:
+# permissions:
+#   contents: write
+
+jobs:
+  test-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Docker-compose
+        run: |
+          cd students/wei-ting/Canchu
+          echo "${{ secrets.ENV_FILE  }}" > .env 
+
+          cd my-docker-app
+          echo "${{ secrets.SSL_MERGED_CRT  }}" > merged.crt
+          echo "${{ secrets.SSL_PRIVATE_KEY  }}" > private.key
+          # sudo docker-compose --env-file ../.env up -d --build
+      - name: build containers
+        run: |
+          # cd students/wei-ting/Canchu
+          # sudo docker build -t canchu-server .
+          cd students/wei-ting/Canchu/my-docker-app
+          # sudo docker volume prune
+          sudo docker-compose --env-file ../.env up -d --build
+          # sudo docker logs express
+      - name: Sleep for 20 seconds
+        run: sleep 20
+      - name: Test By JEST
+        run: |
+          cd students/wei-ting/Canchu/my-docker-app
+          # sudo docker logs express
+          sudo docker exec express npm test -- --watch=false --forceExit
+
+  deploy:
+    runs-on: ubuntu-latest
+    # needs: test-environment xx
+
+    steps:
+      - name: SSH into EC2 instance and deploy Docker image
+       
+        run: |
+          echo "${{ secrets.AWS_PRIVATE_KEY  }}" > aws_private_key && chmod 600 aws_private_key
+          ssh -o StrictHostKeyChecking=no -i aws_private_key ${{ secrets.USERNAME  }}@${{ secrets.HOSTNAME  }} '
+            cd /home/ubuntu/my-member-system &&
+            git remote set-url origin https://Lu-weiting:${{ secrets.TOKEN }}@github.com/Lu-weiting/Campus-Summer-Back-End.git &&
+            git pull origin develop &&
+            git remote set-url origin https://github.com/Lu-weiting/Campus-Summer-Back-End.git &&
+            cd students/wei-ting/Canchu &&
+            echo "${{ secrets.ENV_FILE  }}" > .env &&
+            cd my-docker-app &&
+            echo "${{ secrets.SSL_MERGED_CRT  }}" > merged.crt &&
+            echo "${{ secrets.SSL_PRIVATE_KEY  }}" > private.key &&
+            sudo docker-compose down &&
+            sudo docker-compose --env-file ../.env up --build -d
+          '
+            # sudo docker image prune -af &&
+            # sudo docker volume prune
+# cd /home/ubuntu/Campus-Summer-Back-End/students/wei-ting/Canchu &&
+            

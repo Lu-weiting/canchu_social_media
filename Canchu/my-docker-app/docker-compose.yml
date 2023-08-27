@@ -1,0 +1,65 @@
+version: "3"
+services:
+  # mysql:
+  #   image: mysql:8.0.34-debian
+  #   container_name: mysql
+  #   restart: always
+  #   volumes:
+  #     - type: bind
+  #       source: ./reset.sql
+  #       target: /docker-entrypoint-initdb.d/reset.sql
+  #       read_only: true
+  #     - mysql:/var/lib/mysql
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: 1234root
+  #     MYSQL_DATABASE: my_member_system
+  #   networks:
+  #     - canchu_network
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - canchu_network
+
+  express:
+    build:
+      context: ../ # 正確設置為 Canchu 目錄
+      dockerfile: Dockerfile
+    container_name: express
+    depends_on:
+      - redis
+    environment:
+      # MYSQL_HOST: mysql
+      # MYSQL_PORT: 3306
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - userImage:/canchu/static
+    networks:
+      - canchu_network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - express
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - /etc/ssl/certs/merged.crt:/etc/ssl/certs/merged.crt:ro
+      - /etc/ssl/certs/private.key:/etc/ssl/certs/private.key:ro
+    networks:
+      - canchu_network
+volumes:
+  # mysql:
+  userImage:
+
+networks:
+  canchu_network:
+    driver: bridge
